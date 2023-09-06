@@ -1,352 +1,100 @@
-let API_key = "AIzaSyA9LWV77w1tTi_-9RzbYxHDxwPY6KGlbmk";
-let baseURL = "https://www.googleapis.com/youtube/v3";
+const apiKey = "AIzaSyC0lDc68z2wZ19AT7_ST7RQ2833ZIm1IyE" ;
+const baseUrl = `https://www.googleapis.com/youtube/v3`;
 
-
-
-
-const videoInfo = document.getElementById("video-info");
-const channelStatus = document.getElementById("channel-status");
-console.log(document.cookie);
-window.addEventListener("load", () => {
-  let cookies = document.cookie.split(";").map((x) => {
-    return x.trim();
-  });
-  let cookiesData = {};
-  for (let i = 0; i < cookies.length; i++) {
-    let parts = cookies[i].split("=");
-    cookiesData[parts[0]] = parts[1];
-  }
-  console.log(cookiesData);
-  const videoId = cookiesData.id;
-  console.log(videoId);
-  const fromChannel = document.getElementById("from-channel");
-  fromChannel.addEventListener("click", () => {
-    channelDetails();
-    navigateToChannelPage(
-      cookiesData.channelLogo,
-      cookiesData.channelName,
-      cookiesData.channelId
-    );
-  });
-  const all = document.getElementById("all");
-  all.addEventListener("click", () => {
-    window.location.href = "https://tejbari5.github.io/YouTube-Clone/index.html";
-  });
-  try {
-    renderVideoDetails(cookiesData);
-    renderChannelDetails(cookiesData);
-    renderVideoDescription(cookiesData.id);
-    totalNumOfComments(cookiesData.id);
-    loadUserPicture(cookiesData);
-    loadAllComments(videoId);
-    sideVideos();
-    new YT.Player("video-placeholder", {
-      height: "700",
-      width: "1150",
-      videoId,
-    });
-        const buttonElement = document.querySelector(".subscribe");
-
-    buttonElement.addEventListener("click", () => {
-      buttonElement.classList.toggle("subscribed");
-      if (buttonElement.innerText !== "Subscribed") {
-        buttonElement.innerText = "Subscribed";
-      }
-    });
-  } catch (error) {
-    console.log(error);
-  }
-});
-getSubscription();
-async function getSubscription() {
-  const endPoint = `https://youtube.googleapis.com/youtube/v3/subscriptions?part=snippet&channelId=UC6wLgjFDStkG6LpxidBl2AQ&key=${API_key}&maxResults=20`;
-  try {
-    const response = await fetch(endPoint);
-    const result = await response.json();
-    console.log(result);
-    result.items.forEach((item) => {
-      const div = document.getElementById("last");
-      const span = document.createElement("span");
-      const channelName = item.snippet.title;
-      const channelLogo = item.snippet.thumbnails.default.url;
-      span.innerHTML = `
-        <img src = ${channelLogo} class="channelLogo"/>
-        <b>${channelName}</b>
-      `;
-      div.appendChild(span);
-    });
-  } catch (error) {
-    console.log(error);
-  }
-}
-
-
-async function getChannelDetails(cookiesData) {}
-
-async function loadAllComments(videoId) {
-  const url = `https://youtube.googleapis.com/youtube/v3/commentThreads?part=snippet&videoId=${videoId}&key=${API_key}`;
-
-  try {
-    const section = document.getElementById("comments-container");
-
+async function fetchChannelDetails(channelId = "UCwlt7XMFAYUkqw84XPhZxUg"){
+    let url = `${baseUrl}/channels?key=${apiKey}&part=snippet,statistics&id=${channelId}`
     const response = await fetch(url);
     const result = await response.json();
-    console.log(result);
-    result.items.forEach((item) => {
-      const div = document.createElement("div");
-      div.dataset.authorImage =
-        item.snippet.topLevelComment.snippet.authorProfileImageUrl;
-      div.dataset.authorName =
-        item.snippet.topLevelComment.snippet.authorDisplayName;
-      div.dataset.channelId =
-        item.snippet.topLevelComment.snippet.authorChannelId.value;
-      div.className = "comment-info";
-      div.innerHTML = `
-                <div class="user-image">
-                  <img src="${item.snippet.topLevelComment.snippet.authorProfileImageUrl}" class="channel-logo" alt="" />
+    return result ;
+}
+
+async function fetchVideoDetails(videoId = "28ewOqp-5ds") {
+    let url = `${baseUrl}/videos?key=${apiKey}&part=snippet,contentDetails,statistics&id=${videoId}`;
+
+    const response = await fetch(url, {method: "GET"}); 
+    const videoInfo = await response.json();
+    const channelDetails = await fetchChannelDetails(videoInfo.items[0].snippet.channelId);
+    addDeatailsOntoDOM(videoInfo, channelDetails)
+}
+
+function addDeatailsOntoDOM(videoInfo, channelDetails) {
+    /*
+        <div id="container">
+        <div id="video">
+
+        </div>
+        <p>Lorem ipsum, dolor sit amet consectetur adipisicing elit. Necessitatibus, molestiae.</p>
+        <div class="statistics">
+            <div class="left">
+                576,969 views . Oct 8, 2021
+            </div>
+            <div class="right">
+                <div>
+                    <span class="material-icons">
+                        thumb_up
+                    </span>
+                    <span>1.7K</span>
                 </div>
-                <div class="user-info">
-                  <div class="user-name">
-                    <span class="user-channel">${item.snippet.topLevelComment.snippet.authorDisplayName}</span>
-                    <span> 8 hours ago</span>
-                  </div>
-                  <div class="user-comment">
-                    <p>${item.snippet.topLevelComment.snippet.textDisplay}</p>
-                  </div>
+                <div>
+                    <span class="material-icons">
+                        thumb_down
+                    </span>
+                    <span>2.8K</span>
                 </div>
-          `;
-      section.appendChild(div);
-    });
-
-    document.querySelectorAll(".comment-info").forEach((commentDiv) => {
-      commentDiv.addEventListener("click", () => {
-        const authorImage = commentDiv.dataset.authorImage;
-        const authorName = commentDiv.dataset.authorName;
-        const channelId = commentDiv.dataset.channelId;
-        navigateToChannelPage(authorImage, authorName, channelId);
-      });
-    });
-  } catch (error) {
-    console.log(error);
-  }
-}
-
-async function sideVideos() {
-  const endPoint = `${baseURL}/videos?part=snippet&chart=mostPopular&regionCode=IN&key=${API_key}&maxResults=20`;
-  try {
-    const response = await fetch(endPoint);
-    const result = await response.json();
-    for (let i = 0; i < result.items.length; i++) {
-      const {
-        snippet: { channelId },
-      } = result.items[i];
-      const channelLogoAndSubs = await channelDetails(channelId);
-      const channelLogo = channelLogoAndSubs.channelLogo;
-      const subscribersCount = channelLogoAndSubs.subscriberCount;
-      result.items[i].snippet.channelLogo = channelLogo;
-      result.items[i].snippet.subscriberCount = subscribersCount;
-      const { id: videoId } = result.items[i];
-      const { viewCount, likeCount } = await videoStatistics(videoId);
-      result.items[i].snippet.viewCount = viewCount;
-      result.items[i].snippet.likeCount = likeCount;
-    }
-    console.log(result);
-    renderVideosOntoUI(result.items);
-  } catch (error) {
-    console.log("Error Occured", error);
-  }
-}
-
-async function videoStatistics(videoId) {
-  const endPoint = `${baseURL}/videos?part=statistics&id=${videoId}&key=${API_key}`;
-  try {
-    const response = await fetch(endPoint);
-    const result = await response.json();
-    let viewCount = result.items[0].statistics.viewCount;
-    let likeCount = result.items[0].statistics.likeCount;
-
-    if (viewCount > 1000 && viewCount < 999999) {
-      viewCount = `${(viewCount / 1000).toFixed(1)}K`;
-    }
-    if (viewCount >= 1000000 && viewCount < 99999999) {
-      viewCount = `${(viewCount / 1000000).toFixed(1)}M`;
-    }
-    if (viewCount >= 100000000) {
-      viewCount = `${(viewCount / 100000000).toFixed(1)}B`;
-    }
-    if (likeCount > 1000 && likeCount < 999999) {
-      likeCount = `${(likeCount / 1000).toFixed(1)}K`;
-    }
-    if (likeCount >= 1000000 && likeCount < 99999999) {
-      likeCount = `${(likeCount / 1000000).toFixed(1)}M`;
-    }
-    if (likeCount >= 100000000) {
-      likeCount = `${(likeCount / 100000000).toFixed(1)}B`;
-    }
-
-    return { viewCount, likeCount };
-  } catch (error) {
-    console.log(error);
-  }
-}
-
-async function channelDetails(channelId) {
-  const endPoint = `${baseURL}/channels?part=snippet&part=statistics&id=${channelId}&key=${API_key}`;
-  try {
-    const response = await fetch(endPoint);
-    const result = await response.json();
-    const channelLogo = result.items[0].snippet.thumbnails.high.url;
-    let subscriberCount = result.items[0].statistics.subscriberCount;
-    if (subscriberCount > 1000 && subscriberCount < 999999) {
-      subscriberCount = subscriberCount / 1000 + "K";
-    }
-    if (subscriberCount > 999999 && subscriberCount < 100000000) {
-      subscriberCount = subscriberCount / 1000000 + "M";
-    }
-    if (subscriberCount >= 100000000) {
-      subscriberCount = subscriberCount / 100000000 + "B";
-    }
-    return { channelLogo, subscriberCount };
-  } catch (error) {
-    console.log(error);
-  }
-}
-
-let card;
-function renderVideosOntoUI(videosList) {
-  console.log("Called");
-  const section = document.getElementById("video-suggestions");
-  videosList.forEach((video) => {
-    card = document.createElement("div");
-    card.className = "card";
-    card.innerHTML = `
-            <img
-              src="${video.snippet.thumbnails.high.url}"
-              alt=""
-              class="video-thumbnail"
-            />
-            <div class="video-details">
-              <p>${video.snippet.title}</p>
-              <p>${video.snippet.channelTitle}</p>
-              <p>${video.snippet.viewCount} • 3 years ago</p>
-            </div>
-        `;
-    section.appendChild(card);
-  });
-}
-
-async function renderVideoDetails(cookiesData) {
-  const videoDetailsContainer = document.getElementById("video-details");
-  videoDetailsContainer.innerHTML = `
-        <h3>${cookiesData.videoTitle}</h3>
-        <div class="upload-details-likes-dislikes">
-          <div class="views-upload-date">
-            <span>${cookiesData.viewsCount} views • </span>
-            <span>${cookiesData.uploadDate}</span>
-          </div>
-          <div class="options">
-            <div class="likes">
-                <img src="Images/like-button.png" alt="" />
-                <span>${cookiesData.likesCount}</span>
-            </div>
-            <div class="dislikes">
-                <img src="Images/dislike-button.png" alt="" />
-            </div>
-            <img src="Images/share-button.png" alt="" />
-            <img src="Images/save-button.png" alt="" />
-            <img src="Images/more-options.png" alt="" />
-          </div>
-        </div>
-    `;
-}
-
-function navigateToChannelPage(authorImage, authorName, channelId) {
-  document.cookie = `authorImage=${authorImage}; path=https://tejbari5.github.io/YouTube-Clone/channelDetails.html`;
-  document.cookie = `authorName=${authorName}; path=https://tejbari5.github.io/YouTube-Clone/channelDetails.html`;
-  document.cookie = `channelId=${channelId}; path=https://tejbari5.github.io/YouTube-Clone/channelDetails.html`;
-
-  window.location.href = `https://tejbari5.github.io/YouTube-Clone/channelDetails.html`;
-}
-
-async function renderChannelDetails(cookiesData) {
-  const fromChannel = document.getElementById("from-channel");
-  fromChannel.innerText = "From " + cookiesData.channelName;
-  const channelDetailsContainer = document.getElementById("channel-status");
-  channelDetailsContainer.innerHTML = `
-        <div class="channel-name-and-subs">
-            <div class="channel-logo">
-                <img class="channel-logo" src="${cookiesData.channelLogo}" alt="">
-            </div>
-            <div class="video-details">
-                <span>${cookiesData.channelName}</span>
-                <span>${cookiesData.subscribersCount} subscribers</span>
             </div>
         </div>
-        <div class="subscribe-button">
-            <button class="subscribe">
-                <span>Subscribe</span>
-            </button>
+        <div class="channel-container">
+            <div class="left">
+                <img src="https://i.ytimg.com/vi/ER9SspLe4Hg/default.jpg" alt="">
+                <div>
+                    <span>Marcus Levin</span>
+                    <span style="color: #AAA">1.2M subscribers</span>
+                </div>
+            </div>
+            <button class="right">Subscribe</button>
         </div>
-    `;
-}
-
-async function renderVideoDescription(videoId) {
-  const endPoint = `${baseURL}/videos?part=snippet&id=${videoId}&key=${API_key}`;
-  try {
-    const response = await fetch(endPoint);
-    const result = await response.json();
-    console.log(result);
-    const description = result.items[0].snippet.description;
-    const initialDescription = description.slice(0, 200);
-    const descriptionDiv = document.getElementById("description-container");
-    descriptionDiv.innerHTML = `
-        <div class="description">
-            <p id="initialDesc">${initialDescription}...</p>
-            <button id="read-more">Show More</button>
-        </div>
-    `;
-  } catch (error) {
-    console.log("Something has happened", error);
-  }
-}
-
-async function totalNumOfComments(videoId) {
-  let endpoint = `${baseURL}/videos?key=${API_key}&id=${videoId}&maxResults=10&part=snippet&part=statistics`;
-  const response = await fetch(endpoint);
-  const result = await response.json();
-  console.log(result);
-  const div = document.getElementById("comment-header");
-  div.innerHTML = `
-    <div class="comments-header">
-        <span class="totalComments">${result.items[0].statistics.commentCount} Comments</span>
-        <span class="sort-button"><img src="Images/Sort-by-button.png" alt=""></span>
     </div>
-  `;
+    */
+   const container = document.createElement("div");
+   container.id = "container"; 
+
+   container.innerHTML = `
+   <div id="video">
+
+   </div>
+   <p>${videoInfo.items[0].snippet.title}</p>
+   <div class="statistics">
+       <div class="left">
+           ${videoInfo.items[0].statistics.viewCount}
+       </div>
+       <div class="right">
+           <div>
+               <span class="material-icons">
+                   thumb_up
+               </span>
+               <span>${videoInfo.items[0].statistics.likeCount}</span>
+           </div>
+           <div>
+               <span class="material-icons">
+                   thumb_down
+               </span>
+               <span>${"NA"}</span>
+           </div>
+       </div>
+   </div>
+   <div class="channel-container">
+       <div class="left">
+           <img src="${channelDetails.items[0].snippet.thumbnails.high.url}" alt="">
+           <div>
+               <span>${channelDetails.items[0].snippet.title}</span>
+               <span style="color: #AAA">${channelDetails.items[0].statistics.subscriberCount}</span>
+           </div>
+       </div>
+       <button class="right">Subscribe</button>
+   </div>
+   `
+
+   document.body.appendChild(container)
 }
 
-function loadUserPicture(cookiesData) {
-  const div = document.getElementById("comment-input");
-  div.innerHTML = `
-    <img src="${cookiesData.channelLogo}" class="channel-logo" alt="user pic" class="profile-pic" />
-    <input
-      type="text"
-      class="input-comment"
-      placeholder="Add a Comment..."
-    />
-  `;
-}
-
-
-
-const togglePanelElement = document.getElementById("toggle-panel");
-const main = document.querySelector(".main");
-const leftPanel = document.querySelector(".left-panel");
-//const cardElement = document.querySelector(".card");
-const aside = document.querySelector(".aside");
-
-togglePanelElement.addEventListener("click", () => {
-  leftPanel.classList.toggle("toggled");
-  main.classList.toggle("main-decreased");
-  card.classList.toggle("card-decreased");
-  aside.classList.toggle("aside-decreased");
-});
+fetchVideoDetails();
